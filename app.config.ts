@@ -32,7 +32,7 @@ const env = {
   appSlug: "text-reader-app",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
+  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/93072080/5SLoHDC4SMpLNhVm4X7zTh/icon-5GT2vY8r9fcdSC2f3f49xT.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
