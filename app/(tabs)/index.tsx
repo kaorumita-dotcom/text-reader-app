@@ -9,11 +9,11 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import Slider from "@react-native-community/slider";
-import { Picker } from "@react-native-picker/picker";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { CustomSlider } from "@/components/ui/custom-slider";
+import { CustomPicker } from "@/components/ui/custom-picker";
 import { useColors } from "@/hooks/use-colors";
 
 type Voice = {
@@ -46,17 +46,13 @@ export default function HomeScreen() {
   const loadVoices = async () => {
     try {
       const available = await Speech.getAvailableVoicesAsync();
-      // Prefer Japanese voices, then all voices
-      const jpVoices = available.filter((v) =>
-        v.language.startsWith("ja")
-      );
+      const jpVoices = available.filter((v) => v.language.startsWith("ja"));
       const allVoices = jpVoices.length > 0 ? jpVoices : available;
       setVoices(allVoices);
       if (allVoices.length > 0) {
         setSelectedVoice(allVoices[0].identifier);
       }
     } catch {
-      // Web may not support getAvailableVoicesAsync
       setVoices([]);
     } finally {
       setLoadingVoices(false);
@@ -67,21 +63,15 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-
     if (!text.trim()) return;
 
-    if (speechState === "paused") {
-      // Resume (iOS only; on Android/web we restart)
-      if (Platform.OS === "ios") {
-        await Speech.resume();
-        setSpeechState("playing");
-        return;
-      }
+    if (speechState === "paused" && Platform.OS === "ios") {
+      await Speech.resume();
+      setSpeechState("playing");
+      return;
     }
 
-    // Stop any ongoing speech first
     await Speech.stop();
-
     setSpeechState("playing");
     Speech.speak(text, {
       rate,
@@ -97,12 +87,10 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-
     if (Platform.OS === "ios") {
       await Speech.pause();
       setSpeechState("paused");
     } else {
-      // Android/web: stop instead of pause
       await Speech.stop();
       setSpeechState("idle");
     }
@@ -117,6 +105,11 @@ export default function HomeScreen() {
   }, []);
 
   const rateLabel = rate.toFixed(1) + "x";
+
+  const pickerItems = voices.map((v) => ({
+    label: v.name,
+    value: v.identifier,
+  }));
 
   return (
     <ScreenContainer>
@@ -176,13 +169,12 @@ export default function HomeScreen() {
                 {rateLabel}
               </Text>
             </View>
-            <Slider
-              style={styles.slider}
+            <CustomSlider
               minimumValue={0.5}
               maximumValue={2.0}
               step={0.1}
               value={rate}
-              onValueChange={setRate}
+              onValueChange={(v) => setRate(Math.round(v * 10) / 10)}
               minimumTrackTintColor="#3B82F6"
               maximumTrackTintColor="#BFDBFE"
               thumbTintColor="#2563EB"
@@ -209,31 +201,15 @@ export default function HomeScreen() {
             </Text>
             {loadingVoices ? (
               <ActivityIndicator
-                color={colors.primary}
+                color="#2563EB"
                 style={styles.voiceLoading}
               />
-            ) : voices.length > 0 ? (
-              <View
-                style={[
-                  styles.pickerWrapper,
-                  { borderColor: colors.border, backgroundColor: colors.background },
-                ]}
-              >
-                <Picker
-                  selectedValue={selectedVoice}
-                  onValueChange={(val) => setSelectedVoice(val)}
-                  style={[styles.picker, { color: colors.foreground }]}
-                  dropdownIconColor={colors.muted}
-                >
-                  {voices.map((v) => (
-                    <Picker.Item
-                      key={v.identifier}
-                      label={v.name}
-                      value={v.identifier}
-                    />
-                  ))}
-                </Picker>
-              </View>
+            ) : pickerItems.length > 0 ? (
+              <CustomPicker
+                selectedValue={selectedVoice}
+                onValueChange={setSelectedVoice}
+                items={pickerItems}
+              />
             ) : (
               <Text style={[styles.noVoiceText, { color: colors.muted }]}>
                 デフォルト音声
@@ -244,7 +220,6 @@ export default function HomeScreen() {
 
         {/* Action Buttons */}
         <View style={styles.buttonsRow}>
-          {/* Play Button */}
           <Pressable
             onPress={handlePlay}
             disabled={speechState === "playing"}
@@ -259,7 +234,6 @@ export default function HomeScreen() {
             <Text style={styles.btnText}>再生</Text>
           </Pressable>
 
-          {/* Pause Button */}
           <Pressable
             onPress={handlePause}
             disabled={speechState !== "playing"}
@@ -274,7 +248,6 @@ export default function HomeScreen() {
             <Text style={styles.btnText}>一時停止</Text>
           </Pressable>
 
-          {/* Reset Button */}
           <Pressable
             onPress={handleReset}
             disabled={speechState === "idle"}
@@ -313,9 +286,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
@@ -334,17 +305,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerIconText: {
-    fontSize: 22,
-  },
+  headerIconText: { fontSize: 22 },
   title: {
     fontSize: 24,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
-  section: {
-    gap: 8,
-  },
+  section: { gap: 8 },
   label: {
     fontSize: 13,
     fontWeight: "500",
@@ -385,11 +352,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  slider: {
-    width: "100%",
-    height: 32,
-    marginVertical: 2,
-  },
   sliderFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -406,18 +368,7 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: "flex-start",
   },
-  voiceLoading: {
-    marginTop: 12,
-  },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  picker: {
-    height: 44,
-    fontSize: 13,
-  },
+  voiceLoading: { marginTop: 12 },
   noVoiceText: {
     fontSize: 13,
     marginTop: 8,
@@ -440,9 +391,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
     opacity: 0.9,
   },
-  btnDisabled: {
-    opacity: 0.45,
-  },
+  btnDisabled: { opacity: 0.45 },
   btnIcon: {
     fontSize: 16,
     color: "#FFFFFF",
